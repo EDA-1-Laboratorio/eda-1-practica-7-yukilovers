@@ -120,6 +120,20 @@ int contar_casas(Casa *cualquiera)
 void insertar_casa(Casa **anillo, Casa *nueva)
 {
     /* ESCRIBE TU CODIGO AQUI */
+    if (*anillo == NULL) {
+        // Caso: Lista vacía. El nodo se apunta a sí mismo.
+        *anillo = nueva;
+        nueva->siguiente = nueva;
+    } else {
+        // Caso: Ya hay nodos. Buscamos el último (el que apunta al inicio).
+        Casa *ultimo = *anillo;
+        while (ultimo->siguiente != *anillo) {
+            ultimo = ultimo->siguiente;
+        }
+        // Insertamos entre el último y el primero
+        ultimo->siguiente = nueva;
+        nueva->siguiente = *anillo;
+    }
 }
 
 /*
@@ -134,6 +148,9 @@ void insertar_casa(Casa **anillo, Casa *nueva)
 Casa *avanzar_gusano(Casa *actual, int pasos)
 {
     /* ESCRIBE TU CODIGO AQUI */
+    for (int i = 0; i < pasos; i++) {
+        actual = actual->siguiente;
+    }
     return actual;
 }
 
@@ -157,6 +174,45 @@ Casa *avanzar_gusano(Casa *actual, int pasos)
 int atacar_asentamiento(Casa **gusano, Casa **anillo)
 {
     /* ESCRIBE TU CODIGO AQUI */
+    Casa *atacada = *gusano;
+
+    // 1. Reducir el 20% de los soldados
+    atacada->soldados -= (atacada->soldados * DANIO_PORCENTAJE / 100);
+
+    // 2. Cosecha de especia: todas las casas DISTINTAS a la atacada ganan +10
+    Casa *aux = *anillo;
+    do {
+        if (aux != atacada) {
+            aux->especia += ESPECIA_COSECHA;
+        }
+        aux = aux->siguiente;
+    } while (aux != *anillo);
+
+    // 3. Verificar si la casa es consumida (< 50 soldados)
+    if (atacada->soldados < SOLDADOS_MIN) {
+        if (atacada->siguiente == atacada) {
+            // Caso especial: era la única casa en el anillo
+            *anillo = NULL;
+            *gusano = NULL;
+        } else {
+            // Buscar el nodo anterior para reconectar el círculo
+            Casa *anterior = atacada;
+            while (anterior->siguiente != atacada) {
+                anterior = anterior->siguiente;
+            }
+            anterior->siguiente = atacada->siguiente;
+
+            // Si eliminamos la casa que servía de "ancla" (*anillo), actualizamos el puntero
+            if (*anillo == atacada) {
+                *anillo = atacada->siguiente;
+            }
+            // Movemos el gusano a la siguiente posición antes de borrar
+            *gusano = atacada->siguiente;
+        }
+        free(atacada);
+        return 1; // Casa eliminada
+    }
+    return 0; // Casa sobrevive
     return 0;
 }
 
@@ -175,6 +231,26 @@ int atacar_asentamiento(Casa **gusano, Casa **anillo)
 int invocar_refuerzos(Casa *actual, Casa **anillo)
 {
     /* ESCRIBE TU CODIGO AQUI */
+    if (actual->especia >= ESPECIA_REFUERZOS) {
+        // Crear nombre para la nueva casa (ej. "Atreides II")
+        char nuevo_nombre[MAX_NOMBRE];
+        snprintf(nuevo_nombre, MAX_NOMBRE, "%s II", actual->nombre);
+        
+        Casa *nueva = crear_casa(nuevo_nombre, 250);
+
+        // Buscar el nodo que apunta a 'actual' para insertar 'nueva' en medio
+        Casa *anterior = actual;
+        while (anterior->siguiente != actual) {
+            anterior = anterior->siguiente;
+        }
+
+        anterior->siguiente = nueva;
+        nueva->siguiente = actual;
+
+        // Resetear especia de la casa que invoca
+        actual->especia = 0;
+        return 1;
+    }
     return 0;
 }
 
